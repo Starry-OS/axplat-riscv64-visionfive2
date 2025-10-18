@@ -37,27 +37,30 @@ boot-stack-size = 0x40000                       # uint
 #
 [devices]
 # MMIO ranges with format (`base_paddr`, `size`).
-mmio-ranges = [[0x0, 0x4000_0000]]              # [(uint, uint)]
+mmio-ranges = [[0x0, 0x4000_0000]]  # [(uint, uint)]
 # VirtIO MMIO ranges with format (`base_paddr`, `size`).
-virtio-mmio-ranges = []                         # [(uint, uint)]
+virtio-mmio-ranges = []             # [(uint, uint)]
 # Base physical address of the PCIe ECAM space.
-pci-ecam-base = 0x2b00_0000                     # uint
+pci-ecam-base = 0x2b00_0000         # uint
 # End PCI bus number.
-pci-bus-end = 0xff                              # uint
+pci-bus-end = 0xff                  # uint
 # PCI device memory ranges.
-pci-ranges = []                                 # [(uint, uint)]
+pci-ranges = []                     # [(uint, uint)]
 
 # Timer interrupt frequency in Hz.
-timer-frequency = 4_000_000                     # uint
+timer-frequency = 4_000_000         # uint
 # Timer interrupt num.
-timer-irq = "0x8000_0000_0000_0005"             # uint
+timer-irq = "0x8000_0000_0000_0005" # uint
+
+# IPI interrupt num
+ipi-irq = "0x8000_0000_0000_0001"   # uint
 
 # VisionFive 2 RTC
-rtc-paddr = 0x1704_0000                         # uint
+rtc-paddr = 0x1704_0000             # uint
 
-plic-paddr = 0x0c00_0000                        # uint
+plic-paddr = 0x0c00_0000            # uint
 
-uart-paddr = 0x1000_0000                        # uint
-uart-irq = 0x20                                 # uint
+uart-paddr = 0x1000_0000            # uint
+uart-irq = 0x20                     # uint
 
-sdmmc-paddr = 0x1602_0000                       # uint
+sdmmc-paddr = 0x1602_0000           # uint
