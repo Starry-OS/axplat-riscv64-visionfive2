@@ -58,4 +58,6 @@ rtc-paddr = 0x1704_0000                         # uint
 plic-paddr = 0x0c00_0000                        # uint
 
 uart-paddr = 0x1000_0000                        # uint
-uart-interrupt = 0x20                           # uint
+uart-irq = 0x20                                 # uint
+
+sdmmc-paddr = 0x1602_0000                       # uint

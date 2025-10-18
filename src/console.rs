@@ -6,7 +6,7 @@ use kspin::SpinNoIrq;
 use lazyinit::LazyInit;
 use uart_16550::MmioSerialPort;
 
-use crate::config::devices::{UART_INTERRUPT, UART_PADDR};
+use crate::config::devices::UART_PADDR;
 
 static UART: LazyInit<SpinNoIrq<MmioSerialPort>> = LazyInit::new();
 
@@ -17,10 +17,6 @@ pub(crate) fn init_early() {
         uart.init();
         SpinNoIrq::new(uart)
     });
-    // TODO: console interrupt
-    if false {
-        axplat::console::init_console_irq(UART_INTERRUPT);
-    }
 }
 
 struct ConsoleIfImpl;
@@ -54,5 +50,12 @@ impl ConsoleIf for ConsoleIfImpl {
             }
         }
         bytes.len()
+    }
+
+    /// Returns the IRQ number for the console, if applicable.
+    #[cfg(feature = "irq")]
+    fn irq_number() -> Option<u32> {
+        // Some(crate::config::devices::UART_IRQ as _)
+        None
     }
 }
