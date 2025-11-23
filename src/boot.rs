@@ -28,36 +28,12 @@ unsafe fn init_mmu() {
     }
 }
 
+/// The earliest entry point for the primary CPU.
 #[unsafe(naked)]
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".text.boot")]
-unsafe extern "C" fn _start() -> ! {
-    core::arch::naked_asm!("
-        .ascii  \"MZ\"
-        j       {entry}
-
-        .balign 8
-        .dword  0x200000            // Image load offset, little endian
-        .dword  _ekernel - _skernel // Effective Image size, little endian
-        .dword  0                   // Kernel flags, little endian
-        .word   0x2                 // Version of this header
-        .word   0                   // Reserved
-        .dword  0                   // Reserved
-        .ascii  \"RISCV\"           // Magic number, little endian
-
-        .balign 8
-        .ascii  \"RSC\\x05\"        // Magic number 2, little endian
-        .word   0                   // Reserved for PE COFF offset
-        ",
-        entry = sym _start_primary,
-    )
-}
-
-/// The earliest entry point for the primary CPU.
-#[unsafe(naked)]
-#[unsafe(link_section = ".text.boot")]
 unsafe extern "C" fn _start_primary() -> ! {
-    // PC = 0x8020_0000
+    // PC = 0x4020_0000
     // a0 = hartid
     // a1 = dtb
     core::arch::naked_asm!("
@@ -92,7 +68,6 @@ unsafe extern "C" fn _start_primary() -> ! {
 /// The earliest entry point for secondary CPUs.
 #[cfg(feature = "smp")]
 #[unsafe(naked)]
-#[unsafe(link_section = ".text.boot")]
 pub(crate) unsafe extern "C" fn _start_secondary() -> ! {
     // a0 = hartid
     // a1 = SP

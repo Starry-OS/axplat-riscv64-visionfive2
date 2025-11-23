@@ -58,9 +58,50 @@ ipi-irq = "0x8000_0000_0000_0001"   # uint
 # VisionFive 2 RTC
 rtc-paddr = 0x1704_0000             # uint
 
+# plic: interrupt-controller@c000000 {
+#     compatible = "starfive,jh7110-plic", "sifive,plic-1.0.0";
+#     reg = <0x0 0xc000000 0x0 0x4000000>;
+#     interrupts-extended = <&cpu0_intc 11>,
+#                     <&cpu1_intc 11>, <&cpu1_intc 9>,
+#                     <&cpu2_intc 11>, <&cpu2_intc 9>,
+#                     <&cpu3_intc 11>, <&cpu3_intc 9>,
+#                     <&cpu4_intc 11>, <&cpu4_intc 9>;
+#     interrupt-controller;
+#     #interrupt-cells = <1>;
+#     #address-cells = <0>;
+#     riscv,ndev = <136>;
+# };
 plic-paddr = 0x0c00_0000            # uint
 
+# uart0: serial@10000000 {
+#     compatible = "starfive,jh7110-uart", "snps,dw-apb-uart";
+#     reg = <0x0 0x10000000 0x0 0x10000>;
+#     clocks = <&syscrg JH7110_SYSCLK_UART0_CORE>,
+#             <&syscrg JH7110_SYSCLK_UART0_APB>;
+#     clock-names = "baudclk", "apb_pclk";
+#     resets = <&syscrg JH7110_SYSRST_UART0_APB>,
+#             <&syscrg JH7110_SYSRST_UART0_CORE>;
+#     interrupts = <32>;
+#     reg-io-width = <4>;
+#     reg-shift = <2>;
+#     status = "disabled";
+# };
 uart-paddr = 0x1000_0000            # uint
 uart-irq = 0x20                     # uint
 
+# mmc1: mmc@16020000 {
+#     compatible = "starfive,jh7110-mmc";
+#     reg = <0x0 0x16020000 0x0 0x10000>;
+#     clocks = <&syscrg JH7110_SYSCLK_SDIO1_AHB>,
+#             <&syscrg JH7110_SYSCLK_SDIO1_SDCARD>;
+#     clock-names = "biu","ciu";
+#     resets = <&syscrg JH7110_SYSRST_SDIO1_AHB>;
+#     reset-names = "reset";
+#     interrupts = <75>;
+#     fifo-depth = <32>;
+#     fifo-watermark-aligned;
+#     data-addr = <0>;
+#     starfive,sysreg = <&sys_syscon 0x9c 0x1 0x3e>;
+#     status = "disabled";
+# };
 sdmmc-paddr = 0x1602_0000           # uint

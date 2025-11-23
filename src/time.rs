@@ -1,8 +1,6 @@
 use riscv::register::time;
 
-use axplat::time::TimeIf;
-
-const NANOS_PER_SEC: u64 = 1_000_000_000;
+use axplat::time::{NANOS_PER_SEC, TimeIf};
 
 const NANOS_PER_TICK: u64 = NANOS_PER_SEC / crate::config::devices::TIMER_FREQUENCY as u64;
 /// RTC wall time offset in nanoseconds at monotonic time base.
@@ -58,6 +56,12 @@ impl TimeIf for TimeIfImpl {
     /// Return epoch offset in nanoseconds (wall time offset to monotonic clock start).
     fn epochoffset_nanos() -> u64 {
         unsafe { RTC_EPOCHOFFSET_NANOS }
+    }
+
+    /// Returns the IRQ number for the timer interrupt.
+    #[cfg(feature = "irq")]
+    fn irq_num() -> usize {
+        crate::config::devices::TIMER_IRQ
     }
 
     /// Set a one-shot timer.

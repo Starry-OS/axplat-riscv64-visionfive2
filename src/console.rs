@@ -32,9 +32,7 @@ impl ConsoleIf for ConsoleIfImpl {
                     uart.send_raw(b'\r');
                     uart.send_raw(b'\n');
                 }
-                c => {
-                    uart.send_raw(c);
-                }
+                c => uart.send_raw(c),
             }
         }
     }
@@ -54,8 +52,7 @@ impl ConsoleIf for ConsoleIfImpl {
 
     /// Returns the IRQ number for the console, if applicable.
     #[cfg(feature = "irq")]
-    fn irq_number() -> Option<u32> {
-        // Some(crate::config::devices::UART_IRQ as _)
-        None
+    fn irq_num() -> Option<usize> {
+        Some(crate::config::devices::UART_IRQ)
     }
 }

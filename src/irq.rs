@@ -1,17 +1,23 @@
-use crate::config::{
-    devices::PLIC_PADDR,
-    plat::{CPU_NUM, PHYS_VIRT_OFFSET},
+use core::{
+    num::NonZeroU32,
+    sync::atomic::{AtomicPtr, Ordering},
 };
-use axplat::irq::{HandlerTable, IpiTarget, IrqHandler, IrqIf};
-use core::sync::atomic::{AtomicPtr, Ordering};
-use plic::{Mode, PLIC};
+
+use axplat::{
+    irq::{HandlerTable, IpiTarget, IrqHandler, IrqIf},
+    percpu::this_cpu_id,
+};
 use riscv::register::sie;
+use riscv_plic::Plic;
 use sbi_rt::HartMask;
+
+use crate::config::{devices::PLIC_PADDR, plat::PHYS_VIRT_OFFSET};
 
 /// `Interrupt` bit in `scause`
 pub(super) const INTC_IRQ_BASE: usize = 1 << (usize::BITS - 1);
 
 /// Supervisor software interrupt in `scause`
+#[allow(unused)]
 pub(super) const S_SOFT: usize = INTC_IRQ_BASE + 1;
 
 /// Supervisor timer interrupt in `scause`
@@ -20,27 +26,31 @@ pub(super) const S_TIMER: usize = INTC_IRQ_BASE + 5;
 /// Supervisor external interrupt in `scause`
 pub(super) const S_EXT: usize = INTC_IRQ_BASE + 9;
 
-static IPI_HANDLER: AtomicPtr<()> = AtomicPtr::new(core::ptr::null_mut());
-
 static TIMER_HANDLER: AtomicPtr<()> = AtomicPtr::new(core::ptr::null_mut());
+
+static IPI_HANDLER: AtomicPtr<()> = AtomicPtr::new(core::ptr::null_mut());
 
 /// The maximum number of IRQs.
 pub const MAX_IRQ_COUNT: usize = 1024;
 
 static IRQ_HANDLER_TABLE: HandlerTable<MAX_IRQ_COUNT> = HandlerTable::new();
 
-static PLIC: PLIC<{ CPU_NUM + 1 }> = unsafe {
-    PLIC::new(PHYS_VIRT_OFFSET + PLIC_PADDR, {
-        let mut init = [2; CPU_NUM + 1];
-        init[0] = 0;
-        init
-    })
-};
+static PLIC: Plic = unsafe { Plic::new(PHYS_VIRT_OFFSET + PLIC_PADDR) };
 
-pub(crate) fn init() {
-    for hart in 1..(CPU_NUM as u32) {
-        PLIC.set_threshold(hart, Mode::Supervisor, 0);
+fn this_context() -> usize {
+    let hart_id = this_cpu_id() + 1;
+    // hart 0 missing S-mode
+    hart_id * 2 // supervisor context
+}
+
+pub(super) fn init_percpu() {
+    // enable soft interrupts, timer interrupts, and external interrupts
+    unsafe {
+        sie::set_ssoft();
+        sie::set_stimer();
+        sie::set_sext();
     }
+    PLIC.init_by_context(this_context());
 }
 
 macro_rules! with_cause {
@@ -60,15 +70,6 @@ macro_rules! with_cause {
             }
         }
     };
-}
-
-pub(super) fn init_percpu() {
-    // enable soft interrupts, timer interrupts, and external interrupts
-    unsafe {
-        sie::set_ssoft();
-        sie::set_stimer();
-        sie::set_sext();
-    }
 }
 
 struct IrqIfImpl;
@@ -91,15 +92,14 @@ impl IrqIf for IrqIfImpl {
             @S_SOFT => {},
             @S_EXT => {},
             @EX_IRQ => {
+                let Some(irq) = NonZeroU32::new(irq as _) else {
+                    return;
+                };
                 if enabled {
-                    PLIC.set_priority(irq as _, 6);
-                    for hart in 1..(CPU_NUM as u32) {
-                        PLIC.enable(hart, Mode::Supervisor, irq as _);
-                    }
+                    PLIC.set_priority(irq, 6);
+                    PLIC.enable(irq, this_context());
                 } else {
-                    for hart in 1..(CPU_NUM as u32) {
-                        PLIC.disable(hart, Mode::Supervisor, irq as _);
-                    }
+                    PLIC.disable(irq, this_context());
                 }
             }
         );
@@ -132,6 +132,7 @@ impl IrqIf for IrqIfImpl {
                     Self::set_enable(irq, true);
                     true
                 } else {
+                    warn!("register handler for External IRQ {irq} failed");
                     false
                 }
             }
@@ -174,7 +175,7 @@ impl IrqIf for IrqIfImpl {
     /// It is called by the common interrupt handler. It should look up in the
     /// IRQ handler table and calls the corresponding handler. If necessary, it
     /// also acknowledges the interrupt controller after handling.
-    fn handle(irq: usize) {
+    fn handle(irq: usize) -> Option<usize> {
         with_cause!(
             irq,
             @S_TIMER => {
@@ -182,24 +183,29 @@ impl IrqIf for IrqIfImpl {
                 let handler = TIMER_HANDLER.load(Ordering::Acquire);
                 if !handler.is_null() {
                     // SAFETY: The handler is guaranteed to be a valid function pointer.
-                    unsafe { core::mem::transmute::<*mut (), IrqHandler>(handler)(irq) };
+                    unsafe { core::mem::transmute::<*mut (), IrqHandler>(handler)() };
                 }
+                Some(irq)
             },
             @S_SOFT => {
                 trace!("IRQ: IPI");
                 let handler = IPI_HANDLER.load(Ordering::Acquire);
                 if !handler.is_null() {
                     // SAFETY: The handler is guaranteed to be a valid function pointer.
-                    unsafe { core::mem::transmute::<*mut (), IrqHandler>(handler)(irq) };
+                    unsafe { core::mem::transmute::<*mut (), IrqHandler>(handler)() };
                 }
+                Some(irq)
             },
             @S_EXT => {
-                // TODO: hart
-                let irq = PLIC.claim(1, Mode::Supervisor);
-                if !IRQ_HANDLER_TABLE.handle(irq as _) {
+                let Some(irq) = PLIC.claim(this_context()) else {
+                    debug!("Spurious external IRQ");
+                    return None;
+                };
+                if !IRQ_HANDLER_TABLE.handle(irq.get() as usize) {
                     debug!("Unhandled IRQ {irq}");
                 }
-                PLIC.complete(1, Mode::Supervisor, irq);
+                PLIC.complete(this_context(), irq);
+                Some(irq.get() as usize)
             },
             @EX_IRQ => {
                 unreachable!("Device-side IRQs should be handled by triggering the External Interrupt.");
