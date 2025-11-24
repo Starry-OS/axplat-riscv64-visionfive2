@@ -32,7 +32,7 @@ unsafe fn init_mmu() {
 #[unsafe(naked)]
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".text.boot")]
-unsafe extern "C" fn _start_primary() -> ! {
+unsafe extern "C" fn _start() -> ! {
     // PC = 0x4020_0000
     // a0 = hartid
     // a1 = dtb
