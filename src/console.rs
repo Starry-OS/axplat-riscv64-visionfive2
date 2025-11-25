@@ -12,9 +12,9 @@ static UART: LazyInit<SpinNoIrq<MmioSerialPort>> = LazyInit::new();
 
 pub(crate) fn init_early() {
     UART.init_once({
-        let mut uart =
+        let uart =
             unsafe { MmioSerialPort::new_with_stride(phys_to_virt(pa!(UART_PADDR)).as_usize(), 4) };
-        uart.init();
+        // uart.init();
         SpinNoIrq::new(uart)
     });
 }
@@ -53,6 +53,7 @@ impl ConsoleIf for ConsoleIfImpl {
     /// Returns the IRQ number for the console, if applicable.
     #[cfg(feature = "irq")]
     fn irq_num() -> Option<usize> {
-        Some(crate::config::devices::UART_IRQ)
+        // Some(crate::config::devices::UART_IRQ)
+        None
     }
 }

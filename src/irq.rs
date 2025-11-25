@@ -201,9 +201,8 @@ impl IrqIf for IrqIfImpl {
                     debug!("Spurious external IRQ");
                     return None;
                 };
-                if !IRQ_HANDLER_TABLE.handle(irq.get() as usize) {
-                    debug!("Unhandled IRQ {irq}");
-                }
+                trace!("IRQ: external {}", irq.get());
+                IRQ_HANDLER_TABLE.handle(irq.get() as usize);
                 PLIC.complete(this_context(), irq);
                 Some(irq.get() as usize)
             },
